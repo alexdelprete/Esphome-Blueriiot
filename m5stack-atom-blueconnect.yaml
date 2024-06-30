@@ -26,12 +26,6 @@ esp32:
   framework:
     type: arduino
     # type: esp-idf
-    #version: 5.1.2
-    #version: latest
-    # platform_version: 6.5.0
-    #sdkconfig_options:
-    #  COMPILER_OPTIMIZATION_SIZE: y  
-    #  CONFIG_ESPTOOLPY_FLASHSIZE_4MB: y
 
 wifi:
   ssid: !secret wifi_ssid
@@ -44,6 +38,17 @@ wifi:
   # ap:
   #   ssid: "Blueriiot Fallback Hotspot"
   #   password: !secret blueriiot_fallback
+
+# Time sync with Home Assistant
+time:
+  - platform: homeassistant
+    id: homeassistant_time
+    timezone: Europe/Rome
+    on_time_sync:
+      then:
+        - logger.log:
+            format: "Synchronized system clock with HA"
+            level: "INFO"
 
 # Enable logging
 logger:
@@ -68,7 +73,7 @@ esp32_ble_tracker:
   on_ble_advertise:
     - mac_address: ${blueriiot_mac}
       then:
-        - logger.log: 
+        - logger.log:
             format: "Found BlueConnect device!"
             level: "DEBUG"
 
@@ -217,10 +222,6 @@ sensor:
     state_class: "measurement"
     accuracy_decimals: 1
 
-time:
-  - platform: homeassistant
-    id: homeassistant_time
-
 text_sensor:
   - platform: template
     id: sensor_${blueriiot_id_prefix}_last_update
@@ -273,4 +274,4 @@ text_sensor:
         - text_sensor.template.publish:
                 id: sensor_${blueriiot_id_prefix}_last_update
                 state: !lambda |-
-                  return id(homeassistant_time).now().strftime("%Y-%m-%d %H:%M");
+                  return id(homeassistant_time).now().strftime("%Y-%m-%d %H.%M");
