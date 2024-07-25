@@ -53,8 +53,7 @@ time:
 # Enable logging
 logger:
   # level: VERY_VERBOSE
-  level: INFO
-  # level: VERBOSE
+  level: DEBUG
 
 # Enable Home Assistant API
 api:
@@ -70,12 +69,36 @@ esp32_ble_tracker:
     active: false
     interval: 1000ms
     window: 700ms
+  # on_ble_advertise:
+  #   - mac_address: ${blueriiot_mac}
+  #     then:
+  #       - logger.log:
+  #           format: "Found BlueConnect device!"
+  #           level: "DEBUG"
   on_ble_advertise:
     - mac_address: ${blueriiot_mac}
       then:
-        - logger.log:
-            format: "Found BlueConnect device!"
-            level: "DEBUG"
+        - lambda: |-
+            ESP_LOGD("ble_adv", "New BLE device");
+            ESP_LOGD("ble_adv", "  address: %s", x.address_str().c_str());
+            ESP_LOGD("ble_adv", "  name: %s", x.get_name().c_str());
+            if(x.get_ibeacon().has_value()) {
+              auto ibeacon = x.get_ibeacon().value();
+              ESP_LOGD("ble_adv", "  ibeacon: %s", ibeacon.get_uuid().to_string().c_str());
+            }
+            ESP_LOGD("ble_adv", "  Advertised service UUIDs:");
+            for (auto uuid : x.get_service_uuids()) {
+                ESP_LOGD("ble_adv", "    - %s", uuid.to_string().c_str());
+            }
+            ESP_LOGD("ble_adv", "  Advertised service data:");
+            for (auto data : x.get_service_datas()) {
+                ESP_LOGD("ble_adv", "    - %s: (length %i)", data.uuid.to_string().c_str(), data.data.size());
+            }
+            ESP_LOGD("ble_adv", "  Advertised manufacturer data:");
+            for (auto data : x.get_manufacturer_datas()) {
+                ESP_LOGD("ble_adv", "    - %s: ", format_hex_pretty(data.data).c_str());
+            }
+
 
 ble_client:
   - mac_address: ${blueriiot_mac}
@@ -154,13 +177,13 @@ sensor:
     device_class: "ph"
     accuracy_decimals: 1
     on_value_range:
-      - above: 7.3
+      - above: 7.2
         below: 7.6
         then:
           - binary_sensor.template.publish:
               id: binary_sensor_${blueriiot_id_prefix}_ph
               state: OFF
-      - below: 7.3
+      - below: 7.2
         then:
           - binary_sensor.template.publish:
               id: binary_sensor_${blueriiot_id_prefix}_ph
@@ -180,18 +203,18 @@ sensor:
     state_class: "measurement"
     accuracy_decimals: 1
     on_value_range:
-      - above: 650
-        below: 750
+      - above: 630
+        below: 730
         then:
           - binary_sensor.template.publish:
               id: binary_sensor_${blueriiot_id_prefix}_orp
               state: OFF
-      - below: 650
+      - below: 630
         then:
           - binary_sensor.template.publish:
               id: binary_sensor_${blueriiot_id_prefix}_orp
               state: ON
-      - above: 750
+      - above: 730
         then:
           - binary_sensor.template.publish:
               id: binary_sensor_${blueriiot_id_prefix}_orp
@@ -240,6 +263,10 @@ text_sensor:
     update_interval: never
     on_notify:
       then:
+            # @Peerke https://community.home-assistant.io/t/blue-connect-pool-measurements/118901/349
+            # float salt = (float)( (int16_t) (x[8]<< 8) + x[7]) / 25.0;
+            # @ST8 https://community.home-assistant.io/t/blue-connect-pool-measurements/118901/354
+            # float salt = (float)( -1.828 * log(( ((int16_t)(x[8]<< 8) + x[7]) * log(temperature)) - 197.369) + 14.076 );
         - lambda: |-
             std::string rawhex = format_hex_pretty((uint8_t *) x.c_str(), x.size()).c_str();
             ESP_LOGD("raw_hex", "%s", rawhex.c_str());
