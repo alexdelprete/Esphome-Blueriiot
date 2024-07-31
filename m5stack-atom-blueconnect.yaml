@@ -69,12 +69,6 @@ esp32_ble_tracker:
     active: false
     interval: 1000ms
     window: 700ms
-  # on_ble_advertise:
-  #   - mac_address: ${blueriiot_mac}
-  #     then:
-  #       - logger.log:
-  #           format: "Found BlueConnect device!"
-  #           level: "DEBUG"
   on_ble_advertise:
     - mac_address: ${blueriiot_mac}
       then:
